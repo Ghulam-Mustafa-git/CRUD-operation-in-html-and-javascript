@@ -1,13 +1,28 @@
-var selectedRow = null
+var selectedRow = null;
 
 function onFormSubmit() {
     if (validate()) {
         var formData = readFormData();
-        if (selectedRow == null)
-            insertNewRecord(formData);
-        else
-            updateRecord(formData);
-        resetForm();
+
+        // Validate CAPTCHA before submitting
+        var captchaResponse = grecaptcha.getResponse();
+        if (captchaResponse === "") {
+            alert("Please solve the CAPTCHA");
+            return;
+        }
+
+        // Send CAPTCHA response to the server for verification
+        verifyCaptcha(captchaResponse).then((captchaVerified) => {
+            if (captchaVerified) {
+                if (selectedRow == null)
+                    insertNewRecord(formData);
+                else
+                    updateRecord(formData);
+                resetForm();
+            } else {
+                alert("CAPTCHA verification failed!");
+            }
+        });
     }
 }
 
@@ -51,6 +66,7 @@ function onEdit(td) {
     document.getElementById("salary").value = selectedRow.cells[2].innerHTML;
     document.getElementById("city").value = selectedRow.cells[3].innerHTML;
 }
+
 function updateRecord(formData) {
     selectedRow.cells[0].innerHTML = formData.fullName;
     selectedRow.cells[1].innerHTML = formData.email;
@@ -65,6 +81,7 @@ function onDelete(td) {
         resetForm();
     }
 }
+
 function validate() {
     isValid = true;
     if (document.getElementById("fullName").value == "") {
@@ -76,4 +93,16 @@ function validate() {
             document.getElementById("fullNameValidationError").classList.add("hide");
     }
     return isValid;
+}
+
+async function verifyCaptcha(captchaResponse) {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `secret=6Lf36ZAqAAAAALyyYFOkRuZJdOHP9Dd4SRw2PkKW&response=${captchaResponse}`
+    });
+    const result = await response.json();
+    return result.success;
 }
